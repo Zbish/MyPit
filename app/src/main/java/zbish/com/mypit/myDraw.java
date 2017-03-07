@@ -19,19 +19,33 @@ import static android.R.id.list;
 
 /**
  * Created by Omri on 06/03/2017.
+ * the view of the app
+ * the class method ondraw, draw all to view
+ * use asynctask to draw new points
  */
 
 public class myDraw extends View{
-    List<myPoint> points = new ArrayList<myPoint>();
+    List<myPoint> points = new ArrayList<>();
     private int screenWidth;
     private int screenHight;
     float moveX,moveY;
     boolean drawLine = true;
     boolean movePoint = false;
     static boolean addNewPoint = false;
-
+    Paint linePaint = new Paint();
+    Paint axisPaint = new Paint();
+    Paint dotPaint = new Paint();
     public myDraw(Context context) {
         super(context);
+        //        pick painter attribute
+        linePaint.setColor(Color.GREEN);
+        linePaint.setStrokeWidth(5);
+        axisPaint.setColor(Color.BLUE);
+        axisPaint.setStrokeWidth(7);
+        dotPaint.setColor(Color.RED);
+        dotPaint.setStrokeWidth(15);
+        dotPaint.setStrokeCap(Paint.Cap.ROUND);
+//        finish painter attribute
         newPointTask m1 = new newPointTask();
         m1.execute();
     }
@@ -41,7 +55,7 @@ public class myDraw extends View{
         //       get screen width and hight
         this.screenWidth = w;
         this.screenHight = h;
-        //       create five random dot
+        //       create five random points
         if(points.size()<5)
         {
             for(int i = 0 ; i<5;i++)
@@ -58,31 +72,19 @@ public class myDraw extends View{
     @Override
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
-        //        pick painter attribute
-        Paint linePaint = new Paint();
-        linePaint.setColor(Color.GREEN);
-        linePaint.setStrokeWidth(3);
-        Paint axisPaint = new Paint();
-        axisPaint.setColor(Color.BLUE);
-        axisPaint.setStrokeWidth(5);
-        Paint dotPaint = new Paint();
-        dotPaint.setColor(Color.RED);
-        dotPaint.setStrokeWidth(15);
-//        finish painter attribute
         //start draw axis
-        canvas.drawLine(150, screenHight/2, screenWidth-150, screenHight/2, axisPaint); //draw width axis
-        int t = (screenWidth-150)-150;
-        canvas.drawLine(screenWidth/2,screenHight/2, screenWidth/2, (screenHight/2)-(t/2), axisPaint); //draw hight axis
-        canvas.drawLine(screenWidth/2,screenHight/2, screenWidth/2, (screenHight/2)+(t/2), axisPaint); //draw hight axis
+        canvas.drawLine(screenWidth/12, screenHight/2, screenWidth-screenWidth/12, screenHight/2, axisPaint); //draw width axis
+        int axisLineLength = (screenWidth-screenWidth/12)-screenWidth/12;
+        canvas.drawLine(screenWidth/2,screenHight/2, screenWidth/2, (screenHight/2)-(axisLineLength/2), axisPaint); //draw hight axis
+        canvas.drawLine(screenWidth/2,screenHight/2, screenWidth/2, (screenHight/2)+(axisLineLength/2), axisPaint); //draw hight axis
         // finish draw axis
         //        start draw points
         float x,y,z,e;
         Collections.sort(points); // sort the points
         for (myPoint point : points)
         {
-            myPoint drawPoint = point;
-            x = drawPoint.getX();
-            y = drawPoint.getY();
+            x = point.getX();
+            y = point.getY();
             canvas.drawPoint(x,y,dotPaint);
         }
 //        finish draw points
@@ -97,13 +99,13 @@ public class myDraw extends View{
         {
             for (int i = 0 ; i<points.size()-1;i++)
             {
-                myPoint myp = points.get(i);
+                myPoint pointA = points.get(i);
                 int j = i+1;
-                myPoint myp2 = points.get(j);
-                x = myp.getX();
-                y = myp.getY();
-                z = myp2.getX();
-                e = myp2.getY();
+                myPoint pointB = points.get(j);
+                x = pointA.getX();
+                y = pointA.getY();
+                z = pointB.getX();
+                e = pointB.getY();
                 canvas.drawLine(x,y,z,e,linePaint);
             }
         }
@@ -114,7 +116,7 @@ public class myDraw extends View{
 
         switch (event.getAction()) {
             case MotionEvent.ACTION_DOWN:
-//                on action down take x,y acordinate, check if is a dot, yes drop line, remove point from list,draw move dot
+//                on action down get x,y acordinate, check if is a point, yes, drop line, remove point from list,draw move dot
                 float x,y,x2,y2;
                 x = event.getX();
                 y = event.getY();
@@ -122,10 +124,10 @@ public class myDraw extends View{
                         x2 = points.get(i).getX();
                         y2 = points.get(i).getY();
                     if (x <= (x2+10) && x + 10 > x2|| y <= (y2+10) && y + 10 > y2) {
-                        drawLine = false;
                         moveX = x;
                         moveY = y;
                         movePoint = true;
+                        drawLine = false;
                         points.remove(i);
                         invalidate();
                     }
@@ -138,11 +140,12 @@ public class myDraw extends View{
                 invalidate();
                 break;
             case MotionEvent.ACTION_UP:
-//              when finger get x,y cordinate and add new pos for point, draw line connected again,stop move point
+//              when finger up get x,y cordinate and add new pos for point, draw line connected again,stop move point
+                float xx,yy;
                 if (!drawLine) {
-                    x = event.getX();
-                    y = event.getY();
-                        myPoint savePoint = new myPoint(x, y);
+                    xx = event.getX();
+                    yy = event.getY();
+                        myPoint savePoint = new myPoint(xx, yy);
                     points.add(savePoint);
                     drawLine = true;
                     movePoint = false;
