@@ -4,6 +4,8 @@ import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
+import android.os.AsyncTask;
+import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
 
@@ -22,36 +24,16 @@ import static android.os.AsyncTask.SERIAL_EXECUTOR;
 public class myDraw extends View{
     int screenWidth;
     int screenHight;
-    static List<myPoint> points = new ArrayList<>();
-    static boolean drawLine = true;
-    static boolean movePoint = false;
+    boolean drawLine = true;
+    boolean movePoint = false;
     static boolean newPoint = false;
-    static int synk = 1;
-    static float moveX,moveY;
+    float moveX,moveY;
+    private points ListOfPOints;
     Paint linePaint = new Paint();
     Paint axisPaint = new Paint();
     Paint dotPaint = new Paint();
 
-    @Override
-    protected void onSizeChanged(int w, int h, int oldw, int oldh) {
-        super.onSizeChanged(w, h, oldw, oldh);
-        //       get screen width and hight
-        this.screenWidth = w;
-        this.screenHight = h;
-        //       create five random points
-        if(points.size()<5)
-        {
-            for(int i = 0 ; i<5;i++)
-            {
-                Random r = new Random();
-                float x = r.nextInt(screenWidth - 400) + 200;
-                float y = r.nextInt(screenHight - 400) + 200;
-                myPoint p1 = new myPoint(x,y);
-                points.add(p1);
-            }
-        }
-    }
-    public myDraw(Context context) {
+    public myDraw(Context context,List<myPoint> poi) {
         super(context);
         //        pick painter attribute
         linePaint.setColor(Color.GREEN);
@@ -62,54 +44,22 @@ public class myDraw extends View{
         dotPaint.setStrokeWidth(15);
         dotPaint.setStrokeCap(Paint.Cap.ROUND);
 //        finish painter attribute
+        //       create five random points
+        this.ListOfPOints = new points(poi);
+    }
 
-    }
-    //draw axis
-    private void drawAxis(Canvas canvas)
-    {
-        canvas.drawLine(screenWidth/12, screenHight/2, screenWidth-screenWidth/12, screenHight/2, axisPaint); //draw width axis
-        int axisLineLength = (screenWidth-screenWidth/12)-screenWidth/12;
-        canvas.drawLine(screenWidth/2,screenHight/2, screenWidth/2, (screenHight/2)-(axisLineLength/2), axisPaint); //draw hight axis
-        canvas.drawLine(screenWidth/2,screenHight/2, screenWidth/2, (screenHight/2)+(axisLineLength/2), axisPaint); //draw hight axis
-    }
-//    draw points
-    private void drawPoints(Canvas canvas)
-    {
-        float x,y;
-        Collections.sort(points); // sort the points
-        for (myPoint point : points)
+    @Override
+    protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+        super.onMeasure(widthMeasureSpec, heightMeasureSpec);
+        this.screenWidth = getMeasuredWidth();
+        this.screenHight = getMeasuredHeight();
+        if(ListOfPOints.getPointsList().size()<5)
         {
-            x = point.getX();
-            y = point.getY();
-            canvas.drawPoint(x,y,dotPaint);
+            for(int i = 0 ; i<5;i++)
+            {
+                ListOfPOints.createRandomPoint(screenWidth,screenHight);
+            }
         }
-    }
-    //        draw line between points
-    private void drawLineBetweenPoints(Canvas canvas)
-    {
-        float x,y,z,e;
-        for (int i = 0,j = 1 ; i<points.size()-1;i++,j++)
-        {
-            myPoint pointA = points.get(i);
-            myPoint pointB = points.get(j);
-            x = pointA.getX();
-            y = pointA.getY();
-            z = pointB.getX();
-            e = pointB.getY();
-            canvas.drawLine(x,y,z,e,linePaint);
-        }
-    }
-//    move the point draw
-    private void movePOint(Canvas canvas)
-    {
-        canvas.drawPoint(moveX,moveY,dotPaint);
-    }
-//    add new point
-    public void addNewPOint()
-    {
-        myPoint newpoint = new myPoint((screenWidth/2),screenHight/2);
-        myDraw.points.add(newpoint);
-        newPoint = false;
     }
 
     @Override
@@ -138,37 +88,105 @@ public class myDraw extends View{
 //    handeling on tuch event
     @Override
     public boolean onTouchEvent(MotionEvent event) {
-        MyAsyncTask a = new MyAsyncTask();
+        MyAsyncTask b = new MyAsyncTask();
         if (MotionEvent.ACTION_DOWN == event.getAction())
         {
             myPoint m1 = new myPoint(event.getX(),event.getY());
-            a.executeOnExecutor(SERIAL_EXECUTOR,m1);
+            float x2,y2,x,y;
+            x= m1.getX();
+            y= m1.getY();
+            for (int i = 0; i < ListOfPOints.getPointsList().size(); i++) {
+                x2 = ListOfPOints.getPoint(i).getX();
+                y2 = ListOfPOints.getPoint(i).getY();
+                if (x <= (x2+10) && x + 10 > x2|| y <= (y2+10) && y + 10 > y2) {
+                    ListOfPOints.removePoint(i);
+                    movePoint = true;
+                    drawLine = false;
+
+                }
+            }
         }
+
         else if(MotionEvent.ACTION_MOVE == event.getAction()&&movePoint)
         {
-
-            try {
-                Thread.sleep(10);
-
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-            MyAsyncTask b = new MyAsyncTask();
             myPoint m2 = new myPoint(event.getX(),event.getY());
-            b.executeOnExecutor(SERIAL_EXECUTOR,m2);
-            invalidate();
+            b.execute(m2);
         }
        else if(MotionEvent.ACTION_UP == event.getAction()&&movePoint)
         {
-            myPoint savePoint = new myPoint(event.getX(),event.getY());
-            myDraw.points.add(savePoint);
-            myDraw.movePoint = false;
-            myDraw.drawLine = true;
+            ListOfPOints.addPoint(event.getX(),event.getY());
+            movePoint = false;
+            drawLine = true;
             invalidate();
-            myDraw.synk = 1;
         }
         return true;
         }
+    class MyAsyncTask extends AsyncTask<myPoint,Void,Void>
+    {
+        @Override
+        protected Void doInBackground(myPoint... params) {
+                moveX = params[0].getX();
+                moveY = params[0].getY();
+                publishProgress();
+
+            return null;
+        }
+        @Override
+        protected void onProgressUpdate(Void... values) {
+            super.onProgressUpdate(values);
+            try {
+                Thread.sleep(15);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            invalidate();
 
 
+        }
+    }
+    //draw axis
+    private void drawAxis(Canvas canvas)
+    {
+        canvas.drawLine(screenWidth/12, screenHight/2, screenWidth-screenWidth/12, screenHight/2, axisPaint); //draw width axis
+        int axisLineLength = (screenWidth-screenWidth/12)-screenWidth/12;
+        canvas.drawLine(screenWidth/2,screenHight/2, screenWidth/2, (screenHight/2)-(axisLineLength/2), axisPaint); //draw hight axis
+        canvas.drawLine(screenWidth/2,screenHight/2, screenWidth/2, (screenHight/2)+(axisLineLength/2), axisPaint); //draw hight axis
+    }
+    //    draw points
+    private void drawPoints(Canvas canvas)
+    {
+        float x,y;
+        for (myPoint point : ListOfPOints.getPointsList())
+        {
+            x = point.getX();
+            y = point.getY();
+            canvas.drawPoint(x,y,dotPaint);
+        }
+    }
+    //        draw line between points
+    private void drawLineBetweenPoints(Canvas canvas)
+    {
+        float x,y,z,e;
+        for (int i = 0,j = 1 ; i<ListOfPOints.getPointsList().size()-1;i++,j++)
+        {
+            myPoint pointA = ListOfPOints.getPoint(i);
+            myPoint pointB = ListOfPOints.getPoint(j);
+            x = pointA.getX();
+            y = pointA.getY();
+            z = pointB.getX();
+            e = pointB.getY();
+            canvas.drawLine(x,y,z,e,linePaint);
+        }
+    }
+    //    move the point draw
+    private void movePOint(Canvas canvas)
+    {
+        canvas.drawPoint(moveX,moveY,dotPaint);
+    }
+    //    add new point
+    public void addNewPOint()
+    {
+        ListOfPOints.addPoint(screenWidth/2,screenHight/2);
+        newPoint = false;
+    }
 }
